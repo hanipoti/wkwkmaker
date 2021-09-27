@@ -13,7 +13,7 @@ volatile boolean canonUDUp = true;
 volatile int canonUDPower = 0;
 const byte canonUDCSPin = 9;
 const byte canonUDPin = 12;
-const byte canonUDOnPin = 13;
+const byte canonUDOnPin = 7;
 
 volatile boolean shootButton = false;
 
