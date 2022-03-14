@@ -77,6 +77,7 @@ void TimerRun() {
     timeToStop--;   //時間経過フラグを減らす
   }
 
+  //ログ出力
   if (turretLRPowerAdjust > 0 || canonUDPowerAdjust > 0){
     Serial.print("StopCount=");
     Serial.print(timeToStop);
@@ -219,10 +220,10 @@ void loop() {
 
   // モータードライバを制御する
   digitalWrite(turretLR_DIRPin , turretLRLeftAdjust);
-  analogWrite(turretLR_PWMPin , constrain(turretLRPowerAdjust * 2, 0 , 255));
+  analogWrite(turretLR_PWMPin , constrain(turretLRPowerAdjust, 0 , 255));
 
   digitalWrite(canonUD_DIRPin , canonUDUpAdjust);
-  analogWrite(canonUD_PWMPin , constrain(canonUDPowerAdjust * 2, 0 , 255));
+  analogWrite(canonUD_PWMPin , constrain(canonUDPowerAdjust, 0 , 255));
   
 
 }
