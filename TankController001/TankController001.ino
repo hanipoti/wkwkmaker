@@ -36,6 +36,7 @@ void setup() {
   Serial3.begin(115200);
 
   for (byte i = 0; i < 8; i++) {
+    //左右展開 リレー制御 HIGH→OFF
     expansionCode[i] = '0';
     expStatePinNo[i] = 38 + i;
     expPowerPinNo[i] = 38 + 8  + (7 - i);
@@ -44,18 +45,21 @@ void setup() {
     pinMode(expStatePinNo[i], OUTPUT);
     digitalWrite(expStatePinNo[i] , HIGH);
 
+    //リフト伸縮 モーターモジュール制御 LOW→OFF
     liftCode[i] = '0';
-    liftStatePinNo[i] = 22 + i;
-    liftPowerPinNo[i] = 22 + 8  + (7 - i);
+    liftStatePinNo[i] = 22 + (i * 2);
+    liftPowerPinNo[i] = 23 + (i * 2);
     pinMode(liftPowerPinNo[i], OUTPUT);
-    digitalWrite(liftPowerPinNo[i] , HIGH);
+    digitalWrite(liftPowerPinNo[i] , LOW);
     pinMode(liftStatePinNo[i], OUTPUT);
-    digitalWrite(liftStatePinNo[i] , HIGH);
+    digitalWrite(liftStatePinNo[i] , LOW);
   }
 
   FlexiTimer2::stop();
   FlexiTimer2::set(100, TimerRun) ; // ms毎に割込み発生
   FlexiTimer2::start();
+
+  Serial.println("Start");
 }
 
 void loop() {
@@ -131,8 +135,8 @@ void loop() {
       digitalWrite(expStatePinNo[i] , HIGH);
 
       liftCode[i] = '0';
-      digitalWrite(liftPowerPinNo[i] , HIGH);
-      digitalWrite(liftStatePinNo[i] , HIGH);
+      digitalWrite(liftPowerPinNo[i] , LOW);
+      digitalWrite(liftStatePinNo[i] , LOW);
     }
 
   } else {
@@ -166,29 +170,29 @@ void loop() {
       }
 
       if (liftCode[i] == '0') {
-        digitalWrite(liftPowerPinNo[i] , HIGH);
-        digitalWrite(liftStatePinNo[i] , HIGH);
+        digitalWrite(liftPowerPinNo[i] , LOW);
+        digitalWrite(liftStatePinNo[i] , LOW);
 
       } else {
-        if ((digitalRead(liftPowerPinNo[i]) == LOW) && (
-              (digitalRead(liftStatePinNo[i]) == HIGH && liftCode[i] == '2') ||
-              (digitalRead(liftStatePinNo[i]) == LOW && liftCode[i] == '1'))) {
+        if ((digitalRead(liftPowerPinNo[i]) == HIGH) && (
+              (digitalRead(liftStatePinNo[i]) == LOW && liftCode[i] == '2') ||
+              (digitalRead(liftStatePinNo[i]) == HIGH && liftCode[i] == '1'))) {
           Serial.println("lift極性が変わる");
-          digitalWrite(liftPowerPinNo[i] , HIGH);   //極性が変わるときは一旦OFFにする
+          digitalWrite(liftPowerPinNo[i] , LOW);   //極性が変わるときは一旦OFFにする
           delay(100);
         }
         switch (liftCode[i]) {
           case '1':
-            digitalWrite(liftStatePinNo[i] , HIGH);
-            digitalWrite(liftPowerPinNo[i] , LOW);
+            digitalWrite(liftStatePinNo[i] , LOW);
+            digitalWrite(liftPowerPinNo[i] , HIGH);
             break;
           case '2':
-            digitalWrite(liftStatePinNo[i] , LOW);
-            digitalWrite(liftPowerPinNo[i] , LOW);
+            digitalWrite(liftStatePinNo[i] , HIGH);
+            digitalWrite(liftPowerPinNo[i] , HIGH);
             break;
           default:
-            digitalWrite(liftPowerPinNo[i] , HIGH);
-            digitalWrite(liftStatePinNo[i] , HIGH);
+            digitalWrite(liftPowerPinNo[i] , LOW);
+            digitalWrite(liftStatePinNo[i] , LOW);
         }
       }
     }
