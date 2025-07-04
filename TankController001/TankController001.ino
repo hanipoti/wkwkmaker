@@ -1,13 +1,15 @@
+//2025/07/04 左右展開をリレー制御からモータードライバに変更
+//
 
 #include <FlexiTimer2.h>
 
-volatile char expansionCode[8];
-volatile byte expStatePinNo[8];
-volatile byte expPowerPinNo[8];
-volatile char liftCode[8];
-volatile byte liftStatePinNo[8];
-volatile byte liftPowerPinNo[8];
-volatile byte timeToStop = 0;
+volatile char expansionCode[8]; //左右展開 モーターごとの制御信号を格納する 0=停止、1=伸び、2=縮み
+volatile byte expStatePinNo[8]; //左右展開 モーター方向ピン
+volatile byte expPowerPinNo[8]; //左右展開 モーターオンオフピン
+volatile char liftCode[8];       //リフト制御 モーターごとの制御信号を格納する 0=停止、1=伸び、2=縮み
+volatile byte liftStatePinNo[8]; //リフト制御 モーター方向ピン
+volatile byte liftPowerPinNo[8]; //リフト制御 モーターオンオフピン
+volatile byte timeToStop = 0;   //制御停止するまでのカウンター 信号を失った時に止める用
 
 void TimerRun() {
   if (timeToStop > 0) {
@@ -36,16 +38,16 @@ void setup() {
   Serial3.begin(115200);
 
   for (byte i = 0; i < 8; i++) {
-    //左右展開 リレー制御 HIGH→OFF
+    //左右展開 モータードライバ制御 LOW→OFF
     expansionCode[i] = '0';
-    expStatePinNo[i] = 38 + i;
-    expPowerPinNo[i] = 38 + 8  + (7 - i);
+    expStatePinNo[i] = 38 + (i * 2);
+    expPowerPinNo[i] = 39 + (i * 2);
     pinMode(expPowerPinNo[i], OUTPUT);
-    digitalWrite(expPowerPinNo[i] , HIGH);
+    digitalWrite(expPowerPinNo[i] , LOW);
     pinMode(expStatePinNo[i], OUTPUT);
-    digitalWrite(expStatePinNo[i] , HIGH);
+    digitalWrite(expStatePinNo[i] , LOW);
 
-    //リフト伸縮 モーターモジュール制御 LOW→OFF
+    //リフト制御 モータードライバ制御 LOW→OFF
     liftCode[i] = '0';
     liftStatePinNo[i] = 22 + (i * 2);
     liftPowerPinNo[i] = 23 + (i * 2);
@@ -56,7 +58,7 @@ void setup() {
   }
 
   FlexiTimer2::stop();
-  FlexiTimer2::set(100, TimerRun) ; // ms毎に割込み発生
+  FlexiTimer2::set(100, TimerRun) ; // 0.1秒毎に割込み発生
   FlexiTimer2::start();
 
   Serial.println("Start");
@@ -64,6 +66,7 @@ void setup() {
 
 void loop() {
 
+  //シリアル通信受信　解析　展開
   if (Serial3.available() >= 12) {
     if (Serial3.read() == 'W') {
       if (Serial3.read() == 'M') {
@@ -75,7 +78,7 @@ void loop() {
             timeToStop = 0;   // コンマ秒指定
             break;
 
-          case 'E':   //展開制御
+          case 'E':   //左右展開
             char tmpExpNo[9];
             for (byte i = 0; i < 9; i++) { //データ８桁＋チェックSUM１桁
               tmpExpNo[i] = Serial3.read();
@@ -127,13 +130,16 @@ void loop() {
     }
   }
 
+  //モータードライバ制御
   if (timeToStop == 0) {
     //制御停止処理
     for (byte i = 0; i < 8; i++) {
+      //左右展開
       expansionCode[i] = '0';
-      digitalWrite(expPowerPinNo[i] , HIGH);
-      digitalWrite(expStatePinNo[i] , HIGH);
+      digitalWrite(expPowerPinNo[i] , LOW);
+      digitalWrite(expStatePinNo[i] , LOW);
 
+      //リフト制御
       liftCode[i] = '0';
       digitalWrite(liftPowerPinNo[i] , LOW);
       digitalWrite(liftStatePinNo[i] , LOW);
@@ -142,33 +148,35 @@ void loop() {
   } else {
     //制御実行
     for (byte i = 0; i < 8; i++) {
+      //左右展開
       if (expansionCode[i] == '0') {
-        digitalWrite(expPowerPinNo[i] , HIGH);
-        digitalWrite(expStatePinNo[i] , HIGH);
+        digitalWrite(expPowerPinNo[i] , LOW);
+        digitalWrite(expStatePinNo[i] , LOW);
 
       } else {
-        if ((digitalRead(expPowerPinNo[i]) == LOW) && (
-              (digitalRead(expStatePinNo[i]) == HIGH && expansionCode[i] == '2') ||
-              (digitalRead(expStatePinNo[i]) == LOW && expansionCode[i] == '1'))) {
+        if ((digitalRead(expPowerPinNo[i]) == HIGH) && (
+              (digitalRead(expStatePinNo[i]) == LOW && expansionCode[i] == '2') ||
+              (digitalRead(expStatePinNo[i]) == HIGH && expansionCode[i] == '1'))) {
           Serial.println("exp極性が変わる");
-          digitalWrite(expPowerPinNo[i] , HIGH);   //極性が変わるときは一旦OFFにする
+          digitalWrite(expPowerPinNo[i] , LOW);   //極性が変わるときは一旦OFFにする
           delay(100);
         }
         switch (expansionCode[i]) {
           case '1':
-            digitalWrite(expStatePinNo[i] , HIGH);
-            digitalWrite(expPowerPinNo[i] , LOW);
+            digitalWrite(expStatePinNo[i] , LOW);
+            digitalWrite(expPowerPinNo[i] , HIGH);
             break;
           case '2':
-            digitalWrite(expStatePinNo[i] , LOW);
-            digitalWrite(expPowerPinNo[i] , LOW);
+            digitalWrite(expStatePinNo[i] , HIGH);
+            digitalWrite(expPowerPinNo[i] , HIGH);
             break;
           default:
-            digitalWrite(expPowerPinNo[i] , HIGH);
-            digitalWrite(expStatePinNo[i] , HIGH);
+            digitalWrite(expPowerPinNo[i] , LOW);
+            digitalWrite(expStatePinNo[i] , LOW);
         }
       }
 
+      //リフト制御
       if (liftCode[i] == '0') {
         digitalWrite(liftPowerPinNo[i] , LOW);
         digitalWrite(liftStatePinNo[i] , LOW);
